@@ -1,19 +1,20 @@
 package main
 
+//go run server/server.go -port 5454
+
 import (
-	"context"
 	"flag"
-	"google.golang.org/grpc"
 	"log"
+	"math/rand"
 	"net"
 	proto "simpleGuide/grpc"
 	"strconv"
-	"time"
+	"google.golang.org/grpc"
 )
 
 // Struct that will be used to represent the Server.
 type Server struct {
-	proto.UnimplementedTimeAskServer // Necessary
+	proto.UnimplementedStreamingServiceServer // Necessary
 	name                             string
 	port                             int
 }
@@ -54,17 +55,44 @@ func startServer(server *Server) {
 	log.Printf("Started server at port: %d\n", server.port)
 
 	// Register the grpc server and serve its listener
-	proto.RegisterTimeAskServer(grpcServer, server)
+	proto.RegisterStreamingServiceServer(grpcServer, server)
 	serveError := grpcServer.Serve(listener)
 	if serveError != nil {
 		log.Fatalf("Could not serve listener")
 	}
 }
 
-func (c *Server) AskForTime(ctx context.Context, in *proto.AskForTimeMessage) (*proto.TimeMessage, error) {
-	log.Printf("Client with ID %d asked for the time\n", in.ClientId)
-	return &proto.TimeMessage{
+func (c *Server) GetChatMessageStreaming(req *proto.PublishChatMessage, srv proto.StreamingService_GetChatMessageStreamingServer) error {
+	/*log.Printf("Client with ID %d asked for the time\n", in.ClientId)
+	return &proto.{
 		Time:       time.Now().String(),
 		ServerName: c.name,
-	}, nil
+	}, nil*/
+	//log.Println("Fetch data streaming")
+
+	//for i := 0; i < 10; i++ {
+		//value := randStringBytes(5)
+
+		resp := proto.BroadcastChatMessage{
+			ServerName: strconv.Itoa(14),
+			Message: req.Message,
+		}
+
+		if err := srv.Send(&resp); err != nil {
+			log.Println("error generating response")
+			return err
+		}
+	//}
+
+	return nil
+}
+
+func randStringBytes(n int) string {
+	const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return string(b)
 }
