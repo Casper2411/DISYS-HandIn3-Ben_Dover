@@ -1,0 +1,14 @@
+This is the plan that was constructed between the group on the date 11/10-23
+
+Summary:
+Vi har aftalt at lave server side streaming, og at vi sender Lamport Timestamp. 
+herunder er vores plan for hvad vi skal kunne.
+•	Client Sende message
+•	Server Modtage message
+•	Server sende stream
+•	Client modtage stream
+•	Client sende Lamport timestamp
+
+Herunder er udtaget fra en samtale fra en TA:
+I client skal der laves et uendeligt for loop ish som modtager en stream fra serveren og hele tiden tjekker om der er noget i streamen som så vil blive printet. Den må ikke gå ud af for-loopet, for så dør streamen. 
+I serveren skal streamen sendes. Serveren kan tjekke om client stadig lytter med ved at tjekke stream.context.Done() (som returnerer en channel, og når der er noget i channel så er clienten død).
