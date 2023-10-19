@@ -4,20 +4,33 @@ package simpleGuide;
 
 option go_package = "grpc/proto";
 
-message PublishChatMessage {
-  int64 clientId = 1;
-  string message = 2;
-  //gem input her
+message Participant{
+  string id = 1;
+  string name = 2;
 }
+
+message ChatMessage {
+  string id = 1;
+  Participant participant = 2;
+  string message = 3;
+  string timestamp = 4;
+}
+
+message Connect{
+  Participant participant = 1;
+  bool active = 2;
+}
+
+message Empty {}
 
 /*message AskForTimeMessage {
   int64 clientId = 1;
 }*/
 
-message BroadcastChatMessage {
+/*message BroadcastChatMessage {
   string serverName = 1;
   string message = 2;
-}
+}*/
 
 /*message TimeMessage {
   string serverName = 1;
@@ -34,7 +47,8 @@ message JoinResponse {
 
 service StreamingService {
   //rpc Join(JoinRequest) returns (JoinResponse) {}
-  rpc GetChatMessageStreaming(PublishChatMessage) returns (stream BroadcastChatMessage);
+  rpc GetChatMessageStreaming(Connect) returns (stream ChatMessage);
+  rpc SendChatMessage(ChatMessage) returns (Empty);
 }
 
 /*service StreamingService {

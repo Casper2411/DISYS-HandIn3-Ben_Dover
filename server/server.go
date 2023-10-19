@@ -3,20 +3,30 @@ package main
 //go run server/server.go -port 5454
 
 import (
+	"context"
 	"flag"
 	"log"
-	"math/rand"
 	"net"
 	proto "simpleGuide/grpc"
 	"strconv"
+	"sync"
+
 	"google.golang.org/grpc"
 )
+
+type Connection struct {
+	stream proto.StreamingService_GetChatMessageStreamingServer
+	id     string
+	active bool
+	error  chan error
+}
 
 // Struct that will be used to represent the Server.
 type Server struct {
 	proto.UnimplementedStreamingServiceServer // Necessary
 	name                             string
 	port                             int
+	connection []*Connection
 }
 
 // Used to get the user-defined port for the server from the command line
@@ -26,19 +36,22 @@ func main() {
 	// Get the port from the command line when the server is run
 	flag.Parse()
 
+	var connections []*Connection
+
 	// Create a server struct
 	server := &Server{
 		name: "serverName",
 		port: *port,
+		connection: connections,
 	}
 
 	// Start the server
-	go startServer(server)
+	startServer(server)
 
 	// Keep the server running until it is manually quit
-	for {
+	/*for {
 
-	}
+	}*/
 }
 
 func startServer(server *Server) {
@@ -62,7 +75,9 @@ func startServer(server *Server) {
 	}
 }
 
-func (c *Server) GetChatMessageStreaming(req *proto.PublishChatMessage, srv proto.StreamingService_GetChatMessageStreamingServer) error {
+//GetChatMessageStreaming(*Connect, StreamingService_GetChatMessageStreamingServer) error
+
+func (server *Server) GetChatMessageStreaming(connection *proto.Connect, chatStream proto.StreamingService_GetChatMessageStreamingServer) error {
 	/*log.Printf("Client with ID %d asked for the time\n", in.ClientId)
 	return &proto.{
 		Time:       time.Now().String(),
@@ -73,21 +88,65 @@ func (c *Server) GetChatMessageStreaming(req *proto.PublishChatMessage, srv prot
 	//for i := 0; i < 10; i++ {
 		//value := randStringBytes(5)
 
-		resp := proto.BroadcastChatMessage{
+		conn := &Connection{
+			stream: chatStream,
+			id:		connection.Participant.Id,
+			active: true,
+			error: make(chan error),
+		}
+		
+		server.connection = append(server.connection, conn)
+
+		/*resp := proto.BroadcastChatMessage{
 			ServerName: strconv.Itoa(14),
-			Message: req.Message,
+			Message: conn.Message,
 		}
 
 		if err := srv.Send(&resp); err != nil {
 			log.Println("error generating response")
 			return err
 		}
-	//}
+	//}*/
 
-	return nil
+	return <-conn.error
 }
 
-func randStringBytes(n int) string {
+//SendChatMessage(context.Context, *ChatMessage) (*Empty, error)
+func (server *Server) SendChatMessage(ctx context.Context, chatMessage *proto.ChatMessage) (*proto.Empty, error){
+	waitGroup := sync.WaitGroup{}
+	done := make(chan int)
+
+	for _, connection := range server.connection{
+		waitGroup.Add(1)
+
+		go func(chatMessage *proto.ChatMessage, connection *Connection){
+			defer waitGroup.Done()
+
+			if(connection.active){
+				err := connection.stream.Send(chatMessage)
+				log.Println("Sending message from ", connection.id)
+				
+				if err!=nil {
+					log.Println("Error: ", err)
+					connection.active = false
+					connection.error <- err
+				}
+			}
+		}(chatMessage, connection)
+	}
+
+	go func(){
+		waitGroup.Wait()
+		close(done)
+	}()
+
+	<-done
+	log.Println("end of method test")
+	return &proto.Empty{}, nil
+}
+
+
+/*func randStringBytes(n int) string {
 	const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 	b := make([]byte, n)
@@ -95,4 +154,4 @@ func randStringBytes(n int) string {
 		b[i] = letterBytes[rand.Intn(len(letterBytes))]
 	}
 	return string(b)
-}
+}*/

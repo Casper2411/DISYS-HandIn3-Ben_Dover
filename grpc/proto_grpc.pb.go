@@ -19,16 +19,17 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	StreamingService_Join_FullMethodName                    = "/simpleGuide.StreamingService/Join"
 	StreamingService_GetChatMessageStreaming_FullMethodName = "/simpleGuide.StreamingService/GetChatMessageStreaming"
+	StreamingService_SendChatMessage_FullMethodName         = "/simpleGuide.StreamingService/SendChatMessage"
 )
 
 // StreamingServiceClient is the client API for StreamingService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type StreamingServiceClient interface {
-	Join(ctx context.Context, in *JoinRequest, opts ...grpc.CallOption) (*JoinResponse, error)
-	GetChatMessageStreaming(ctx context.Context, in *PublishChatMessage, opts ...grpc.CallOption) (StreamingService_GetChatMessageStreamingClient, error)
+	// rpc Join(JoinRequest) returns (JoinResponse) {}
+	GetChatMessageStreaming(ctx context.Context, in *Connect, opts ...grpc.CallOption) (StreamingService_GetChatMessageStreamingClient, error)
+	SendChatMessage(ctx context.Context, in *ChatMessage, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type streamingServiceClient struct {
@@ -39,16 +40,7 @@ func NewStreamingServiceClient(cc grpc.ClientConnInterface) StreamingServiceClie
 	return &streamingServiceClient{cc}
 }
 
-func (c *streamingServiceClient) Join(ctx context.Context, in *JoinRequest, opts ...grpc.CallOption) (*JoinResponse, error) {
-	out := new(JoinResponse)
-	err := c.cc.Invoke(ctx, StreamingService_Join_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *streamingServiceClient) GetChatMessageStreaming(ctx context.Context, in *PublishChatMessage, opts ...grpc.CallOption) (StreamingService_GetChatMessageStreamingClient, error) {
+func (c *streamingServiceClient) GetChatMessageStreaming(ctx context.Context, in *Connect, opts ...grpc.CallOption) (StreamingService_GetChatMessageStreamingClient, error) {
 	stream, err := c.cc.NewStream(ctx, &StreamingService_ServiceDesc.Streams[0], StreamingService_GetChatMessageStreaming_FullMethodName, opts...)
 	if err != nil {
 		return nil, err
@@ -64,7 +56,7 @@ func (c *streamingServiceClient) GetChatMessageStreaming(ctx context.Context, in
 }
 
 type StreamingService_GetChatMessageStreamingClient interface {
-	Recv() (*BroadcastChatMessage, error)
+	Recv() (*ChatMessage, error)
 	grpc.ClientStream
 }
 
@@ -72,20 +64,30 @@ type streamingServiceGetChatMessageStreamingClient struct {
 	grpc.ClientStream
 }
 
-func (x *streamingServiceGetChatMessageStreamingClient) Recv() (*BroadcastChatMessage, error) {
-	m := new(BroadcastChatMessage)
+func (x *streamingServiceGetChatMessageStreamingClient) Recv() (*ChatMessage, error) {
+	m := new(ChatMessage)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
 	return m, nil
 }
 
+func (c *streamingServiceClient) SendChatMessage(ctx context.Context, in *ChatMessage, opts ...grpc.CallOption) (*Empty, error) {
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, StreamingService_SendChatMessage_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // StreamingServiceServer is the server API for StreamingService service.
 // All implementations must embed UnimplementedStreamingServiceServer
 // for forward compatibility
 type StreamingServiceServer interface {
-	Join(context.Context, *JoinRequest) (*JoinResponse, error)
-	GetChatMessageStreaming(*PublishChatMessage, StreamingService_GetChatMessageStreamingServer) error
+	// rpc Join(JoinRequest) returns (JoinResponse) {}
+	GetChatMessageStreaming(*Connect, StreamingService_GetChatMessageStreamingServer) error
+	SendChatMessage(context.Context, *ChatMessage) (*Empty, error)
 	mustEmbedUnimplementedStreamingServiceServer()
 }
 
@@ -93,11 +95,11 @@ type StreamingServiceServer interface {
 type UnimplementedStreamingServiceServer struct {
 }
 
-func (UnimplementedStreamingServiceServer) Join(context.Context, *JoinRequest) (*JoinResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Join not implemented")
-}
-func (UnimplementedStreamingServiceServer) GetChatMessageStreaming(*PublishChatMessage, StreamingService_GetChatMessageStreamingServer) error {
+func (UnimplementedStreamingServiceServer) GetChatMessageStreaming(*Connect, StreamingService_GetChatMessageStreamingServer) error {
 	return status.Errorf(codes.Unimplemented, "method GetChatMessageStreaming not implemented")
+}
+func (UnimplementedStreamingServiceServer) SendChatMessage(context.Context, *ChatMessage) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendChatMessage not implemented")
 }
 func (UnimplementedStreamingServiceServer) mustEmbedUnimplementedStreamingServiceServer() {}
 
@@ -112,26 +114,8 @@ func RegisterStreamingServiceServer(s grpc.ServiceRegistrar, srv StreamingServic
 	s.RegisterService(&StreamingService_ServiceDesc, srv)
 }
 
-func _StreamingService_Join_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(JoinRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(StreamingServiceServer).Join(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: StreamingService_Join_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StreamingServiceServer).Join(ctx, req.(*JoinRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _StreamingService_GetChatMessageStreaming_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(PublishChatMessage)
+	m := new(Connect)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
@@ -139,7 +123,7 @@ func _StreamingService_GetChatMessageStreaming_Handler(srv interface{}, stream g
 }
 
 type StreamingService_GetChatMessageStreamingServer interface {
-	Send(*BroadcastChatMessage) error
+	Send(*ChatMessage) error
 	grpc.ServerStream
 }
 
@@ -147,8 +131,26 @@ type streamingServiceGetChatMessageStreamingServer struct {
 	grpc.ServerStream
 }
 
-func (x *streamingServiceGetChatMessageStreamingServer) Send(m *BroadcastChatMessage) error {
+func (x *streamingServiceGetChatMessageStreamingServer) Send(m *ChatMessage) error {
 	return x.ServerStream.SendMsg(m)
+}
+
+func _StreamingService_SendChatMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChatMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StreamingServiceServer).SendChatMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: StreamingService_SendChatMessage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StreamingServiceServer).SendChatMessage(ctx, req.(*ChatMessage))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 // StreamingService_ServiceDesc is the grpc.ServiceDesc for StreamingService service.
@@ -159,8 +161,8 @@ var StreamingService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*StreamingServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Join",
-			Handler:    _StreamingService_Join_Handler,
+			MethodName: "SendChatMessage",
+			Handler:    _StreamingService_SendChatMessage_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
