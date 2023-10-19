@@ -2,6 +2,8 @@ package main
 
 //go run client/client.go -cPort 8080 -sPort 5454
 
+//MÅSKE IMPLEMENTER TO GOROUTINES - den ene lytter hele tiden i streamen, og den anden holder scanneren åben til at skrive beskeder
+
 import (
 	"bufio"
 	"context"
@@ -37,17 +39,20 @@ func main() {
 		portNumber: *clientPort,
 	}
 
+	serverConnection, _ := connectToServer()
+
 	// Wait for the client (user) to ask for the time
-	go waitForChatMessages(client)
+	go listenToStream(client, serverConnection)
+	go sendChat(client, serverConnection)
 
 	for {
 
 	}
 }
 
-func waitForChatMessages(client *Client) {
+func listenToStream(client *Client, serverConnection proto.StreamingServiceClient) {
 	// Connect to the server
-	serverConnection, _ := connectToServer()
+	
 
 	stream, err := serverConnection.GetChatMessageStreaming(context.Background(), &proto.PublishChatMessage{
 		ClientId: int64(client.id),
@@ -57,16 +62,20 @@ func waitForChatMessages(client *Client) {
 		log.Printf(err.Error())
 	}
 
-	resp, err := stream.Recv()
-			if err == io.EOF {
-				return
-			} else if err == nil {
-				valStr := fmt.Sprintf("Response\n Part: %s \n Val: %s", resp.ServerName, resp.Message)
-				log.Println(valStr)
-			}
+	for{
+		resp, err := stream.Recv()
+		if err == io.EOF {
+			return
+		} else if err == nil {
+			valStr := fmt.Sprintf("Response\n Part: %s \n Val: %s", resp.ServerName, resp.Message)
+			log.Println(valStr)
+		}
 
-	// Wait for input in the client terminal
-	
+	}
+}
+
+//skal streamen måske med som argument?
+func sendChat(client *Client, serverConnection proto.StreamingServiceClient){
 	for {
 		scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
