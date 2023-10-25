@@ -134,6 +134,12 @@ func connectParticipant(participant *proto.Participant, client proto.StreamingSe
 
 		for {
 			chatMessage, err := chatStream.Recv()
+			fmt.Println(len(chatMessage.String()))
+			if len(chatMessage.String()) > 180 {
+				fmt.Println(len(chatMessage.String()), "wwwoowoowowo")
+				streamError = fmt.Errorf("Message too long %v", err)
+				break
+			}
 			if err != nil {
 				streamError = fmt.Errorf("error reading message: %v", err)
 				break
