@@ -2,7 +2,6 @@ package main
 
 //go run client/client.go -cPort 8080 -sPort 5454 -name ""
 
-//MÅSKE IMPLEMENTER TO GOROUTINES - den ene lytter hele tiden i streamen, og den anden holder scanneren åben til at skrive beskeder
 
 import (
 	"bufio"
@@ -30,15 +29,18 @@ type Client struct {
 
 var (
 	clientPort = flag.Int("cPort", 0, "client port number")
-	serverPort = flag.Int("sPort", 0, "server port number (should match the port used for the server)")
+	serverPort = flag.Int("sPort", 5454, "server port number (should match the port used for the server)")
 	clientName = flag.String("name", "X", "client name")
 )
 
 var waitGroup *sync.WaitGroup
+var LamportTimestamp int64 
 
 func main() {
 	waitGroup = &sync.WaitGroup{}
 	done := make(chan int)
+	LamportTimestamp = 1
+	//hey guys, pls be kind, this is a christian server :) 
 
 	// Parse the flags to get the port for the client
 	flag.Parse()
@@ -57,35 +59,36 @@ func main() {
 	}
 
 	connectParticipant(participant, serverConnection)
-
-	chatMessage := &proto.ChatMessage{
-		Id:          "connection",
-		Participant: participant,
-		Message:     "Participant " + participant.Name + " joined the chat! Say hello!",
-		Timestamp:   1,
-	}
-
-	_, err := serverConnection.SendChatMessage(context.Background(), chatMessage)
-	if err != nil {
-		log.Println("Connection to chatserver failed")
-	}
+	time.Sleep(1*time.Second)
 
 	waitGroup.Add(1)
 	go func() {
 		defer waitGroup.Done()
 
+		chatMessage := &proto.ChatMessage{
+			Id:          "New participant",
+			Participant: participant,
+			Message:     "Participant " + participant.Name + " joined the chat! Say hello!",
+			Timestamp:   LamportTimestamp,
+		}
+	
+		_, err := serverConnection.SendChatMessage(context.Background(), chatMessage)
+		if err != nil {
+			log.Println("Connection to chatserver failed")
+		}
+
 		scanner := bufio.NewScanner(os.Stdin)
-		timestamp := time.Now()
+		//timestamp := time.Now()
 		messageId := client.name
 
 		for scanner.Scan() {
 			inputMessage := scanner.Text()
-
+			LamportTimestamp = LamportTimestamp + 1
 			chatMessage := &proto.ChatMessage{
 				Id:          messageId,
 				Participant: participant,
 				Message:     inputMessage,
-				Timestamp:   timestamp.String(),
+				Timestamp:   LamportTimestamp,
 			}
 
 			_, err := serverConnection.SendChatMessage(context.Background(), chatMessage)
@@ -102,15 +105,6 @@ func main() {
 	}()
 
 	<-done
-
-	// Wait for the client (user) to ask for the time
-	/*go listenToStream(client, serverConnection)
-	go sendChat(client, serverConnection)
-
-	for {
-
-	}*/
-
 }
 
 func connectToServer() (proto.StreamingServiceClient, error) {
@@ -147,10 +141,18 @@ func connectParticipant(participant *proto.Participant, client proto.StreamingSe
 			if err != nil {
 				streamError = fmt.Errorf("error reading message: %v", err)
 				break
-			}
-			log.Printf("%s : %s", chatMessage.Id, chatMessage.Message)
+			} 
+			LamportTimestamp = Max(LamportTimestamp, chatMessage.Timestamp) + 1
+			log.Printf("Lamport time: %d | %s : %s", LamportTimestamp, chatMessage.Id, chatMessage.Message)
 		}
 	}(stream)
 
 	return streamError
+}
+
+func Max(x, y int64) int64 {
+	if x < y {
+		return y
+	}
+	return x
 }
