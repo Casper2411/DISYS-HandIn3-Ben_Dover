@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"sync"
 
+	//"time"
+
 	"google.golang.org/grpc"
 )
 
@@ -24,9 +26,9 @@ type Connection struct {
 // Struct that will be used to represent the Server.
 type Server struct {
 	proto.UnimplementedStreamingServiceServer // Necessary
-	name                             string
-	port                             int
-	connection []*Connection
+	name                                      string
+	port                                      int
+	connection                                []*Connection
 }
 
 // Used to get the user-defined port for the server from the command line
@@ -40,8 +42,8 @@ func main() {
 
 	// Create a server struct
 	server := &Server{
-		name: "serverName",
-		port: *port,
+		name:       "serverName",
+		port:       *port,
 		connection: connections,
 	}
 
@@ -78,55 +80,35 @@ func startServer(server *Server) {
 //GetChatMessageStreaming(*Connect, StreamingService_GetChatMessageStreamingServer) error
 
 func (server *Server) GetChatMessageStreaming(connection *proto.Connect, chatStream proto.StreamingService_GetChatMessageStreamingServer) error {
-	/*log.Printf("Client with ID %d asked for the time\n", in.ClientId)
-	return &proto.{
-		Time:       time.Now().String(),
-		ServerName: c.name,
-	}, nil*/
-	//log.Println("Fetch data streaming")
 
-	//for i := 0; i < 10; i++ {
-		//value := randStringBytes(5)
+	conn := &Connection{
+		stream: chatStream,
+		id:     connection.Participant.Id,
+		active: true,
+		error:  make(chan error),
+	}
 
-		conn := &Connection{
-			stream: chatStream,
-			id:		connection.Participant.Id,
-			active: true,
-			error: make(chan error),
-		}
-		
-		server.connection = append(server.connection, conn)
-
-		/*resp := proto.BroadcastChatMessage{
-			ServerName: strconv.Itoa(14),
-			Message: conn.Message,
-		}
-
-		if err := srv.Send(&resp); err != nil {
-			log.Println("error generating response")
-			return err
-		}
-	//}*/
-
+	server.connection = append(server.connection, conn)
+	//server.SendChatMessage(context.Background(), &proto.ChatMessage{id:2, participant: connection.Participant, message: "person joined", timestamp: time.Now()})
 	return <-conn.error
 }
 
-//SendChatMessage(context.Context, *ChatMessage) (*Empty, error)
-func (server *Server) SendChatMessage(ctx context.Context, chatMessage *proto.ChatMessage) (*proto.Empty, error){
+// SendChatMessage(context.Context, *ChatMessage) (*Empty, error)
+func (server *Server) SendChatMessage(ctx context.Context, chatMessage *proto.ChatMessage) (*proto.Empty, error) {
 	waitGroup := sync.WaitGroup{}
 	done := make(chan int)
 
-	for _, connection := range server.connection{
+	for _, connection := range server.connection {
 		waitGroup.Add(1)
 
-		go func(chatMessage *proto.ChatMessage, connection *Connection){
+		go func(chatMessage *proto.ChatMessage, connection *Connection) {
 			defer waitGroup.Done()
 
-			if(connection.active){
+			if connection.active {
 				err := connection.stream.Send(chatMessage)
 				log.Println("Sending message from ", connection.id)
-				
-				if err!=nil {
+
+				if err != nil {
 					log.Println("Error: ", err)
 					connection.active = false
 					connection.error <- err
@@ -135,7 +117,7 @@ func (server *Server) SendChatMessage(ctx context.Context, chatMessage *proto.Ch
 		}(chatMessage, connection)
 	}
 
-	go func(){
+	go func() {
 		waitGroup.Wait()
 		close(done)
 	}()
@@ -144,14 +126,3 @@ func (server *Server) SendChatMessage(ctx context.Context, chatMessage *proto.Ch
 	log.Println("end of method test")
 	return &proto.Empty{}, nil
 }
-
-
-/*func randStringBytes(n int) string {
-	const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = letterBytes[rand.Intn(len(letterBytes))]
-	}
-	return string(b)
-}*/

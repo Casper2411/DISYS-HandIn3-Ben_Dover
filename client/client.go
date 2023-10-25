@@ -9,8 +9,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	//"go/scanner"
-	//"io"
 	"log"
 	"math/rand"
 	"os"
@@ -54,39 +52,51 @@ func main() {
 	serverConnection, _ := connectToServer()
 
 	participant := &proto.Participant{
-		Id: strconv.Itoa(rand.Intn(100)),
+		Id:   strconv.Itoa(rand.Intn(100)),
 		Name: client.name,
 	}
 
 	connectParticipant(participant, serverConnection)
 
+	chatMessage := &proto.ChatMessage{
+		Id:          "connection",
+		Participant: participant,
+		Message:     "Participant " + participant.Name + " joined the chat! Say hello!",
+		Timestamp:   1,
+	}
+
+	_, err := serverConnection.SendChatMessage(context.Background(), chatMessage)
+	if err != nil {
+		log.Println("Connection to chatserver failed")
+	}
+
 	waitGroup.Add(1)
-	go func(){
+	go func() {
 		defer waitGroup.Done()
 
 		scanner := bufio.NewScanner(os.Stdin)
 		timestamp := time.Now()
 		messageId := client.name
 
-		for scanner.Scan(){
+		for scanner.Scan() {
 			inputMessage := scanner.Text()
-			
+
 			chatMessage := &proto.ChatMessage{
-				Id: messageId,
+				Id:          messageId,
 				Participant: participant,
-				Message: inputMessage,
-				Timestamp: timestamp.String(),
+				Message:     inputMessage,
+				Timestamp:   timestamp.String(),
 			}
 
 			_, err := serverConnection.SendChatMessage(context.Background(), chatMessage)
-			if err!=nil{
+			if err != nil {
 				log.Println("Connection to chatserver failed")
 				break
 			}
 		}
 	}()
 
-	go func(){
+	go func() {
 		waitGroup.Wait()
 		close(done)
 	}()
@@ -114,95 +124,33 @@ func connectToServer() (proto.StreamingServiceClient, error) {
 	return proto.NewStreamingServiceClient(conn), nil
 }
 
-func connectParticipant(participant *proto.Participant, client proto.StreamingServiceClient) error{
+func connectParticipant(participant *proto.Participant, client proto.StreamingServiceClient) error {
 	var streamError error
 
 	stream, err := client.GetChatMessageStreaming(context.Background(), &proto.Connect{
 		Participant: participant,
-		Active: true,
+		Active:      true,
 	})
 
-	if err!=nil {
+	if err != nil {
 		log.Println("Connection to chatserver failed")
-		return(err)
+		return (err)
 	}
 
 	waitGroup.Add(1)
 
-	go func(chatStream proto.StreamingService_GetChatMessageStreamingClient){
+	go func(chatStream proto.StreamingService_GetChatMessageStreamingClient) {
 		defer waitGroup.Done()
 
-		for{
+		for {
 			chatMessage, err := chatStream.Recv()
-			if err!=nil{
+			if err != nil {
 				streamError = fmt.Errorf("error reading message: %v", err)
 				break
 			}
 			log.Printf("%s : %s", chatMessage.Id, chatMessage.Message)
-		} 
+		}
 	}(stream)
-	
+
 	return streamError
 }
-
-/*func listenToStream(client *Client, serverConnection proto.StreamingServiceClient) {
-	// Connect to the server
-	
-
-	stream, err := serverConnection.GetChatMessageStreaming(context.Background(), &proto.PublishChatMessage{
-		ClientId: int64(client.id),
-		Message: fmt.Sprintf("Participant %d  joined Chitty-Chat at Lamport time L", client.id),
-	})
-	if err != nil {
-		log.Printf(err.Error())
-	}
-
-	for{
-		resp, err := stream.Recv()
-		if err == io.EOF {
-			return
-		} else if err == nil {
-			valStr := fmt.Sprintf("Response\n Part: %s \n Val: %s", resp.ServerName, resp.Message)
-			log.Println(valStr)
-		}
-
-	}
-}
-
-//skal streamen måske med som argument?
-func sendChat(client *Client, serverConnection proto.StreamingServiceClient){
-	for {
-		scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		
-		input := scanner.Text()
-		//log.Printf("Client asked for time with input: %s\n", input)
-
-		// Send a message
-		stream, err := serverConnection.GetChatMessageStreaming(context.Background(), &proto.PublishChatMessage{
-			ClientId: int64(client.id),
-			Message: input,
-		})
-		if err != nil {
-			log.Printf(err.Error())
-		}
-
-		
-			resp, err := stream.Recv()
-			if err == io.EOF {
-				return
-			} else if err == nil {
-				valStr := fmt.Sprintf("Response\n Part: %s \n Val: %s", resp.ServerName, resp.Message)
-				log.Println(valStr)
-			}
-	
-			if err != nil {
-				log.Printf(err.Error())
-			}
-	
-		
-	}
-	}
-}*/
-
-
