@@ -10,9 +10,6 @@ import (
 	proto "simpleGuide/grpc"
 	"strconv"
 	"sync"
-
-	//"time"
-
 	"google.golang.org/grpc"
 )
 
@@ -93,6 +90,7 @@ func (server *Server) GetChatMessageStreaming(connection *proto.Connect, chatStr
 	LamportTimestamp = LamportTimestamp + 1
 	server.connection = removeElement(server.connection, conn)
 	server.sendToAllConnections(&waitGroup, &proto.ChatMessage{Id: "Participant leaving", Participant: connection.Participant, Message: "Participant " + connection.Participant.Name + " is leaving", Timestamp: LamportTimestamp})
+	log.Printf("Lamport time %d | Broadcasting that " + connection.Participant.Name + " has left the chat", LamportTimestamp)
 	return <-conn.error
 }
 
@@ -115,7 +113,6 @@ func (server *Server) SendChatMessage(ctx context.Context, chatMessage *proto.Ch
 	}()
 
 	<-done
-	//log.Println("end of method test")
 	return &proto.Empty{}, nil
 }
 
@@ -128,8 +125,7 @@ func (server *Server) sendToAllConnections(waitGroup *sync.WaitGroup, chatMessag
 	
 			if connection.active {
 				err := connection.stream.Send(chatMessage)
-				//log.Printf("Lamport time %d | Broadcasting message from %s", LamportTimestamp, chatMessage.Participant.Name)
-	
+				
 				if err != nil {
 					log.Println("Error: ", err)
 					connection.active = false
