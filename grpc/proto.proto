@@ -23,41 +23,7 @@ message Connect{
 
 message Empty {}
 
-/*message AskForTimeMessage {
-  int64 clientId = 1;
-}*/
-
-/*message BroadcastChatMessage {
-  string serverName = 1;
-  string message = 2;
-}*/
-
-/*message TimeMessage {
-  string serverName = 1;
-  string time = 2;
-}*/
-
-/*message JoinRequest {
-  string name = 1;
-}
-
-message JoinResponse {
-  int64 clientId = 1;
-}*/
-
 service StreamingService {
-  //rpc Join(JoinRequest) returns (JoinResponse) {}
   rpc GetChatMessageStreaming(Connect) returns (stream ChatMessage);
   rpc SendChatMessage(ChatMessage) returns (Empty);
 }
-
-/*service StreamingService {
-  rpc GetChatMessageStreaming(AskForChatMessages) returns (stream ChatMessage);
-}*/
-
-/*service TimeAsk {
-  rpc AskForTime(AskForTimeMessage) returns (TimeMessage);
-}*/
-
-//i client skal der laves et uendeligt for loop ish som modtager en stream fra serveren og hele tiden tjekker om der er noget i streamen som så vil blive printet. Den må ikke gå ud af for-loopet, for så dør streamen. 
-//i serveren skal streamen sendes. Serveren kan tjekke om client stadig lytter med ved at tjekke stream.context.Done() (som returnerer en channel, og når der er noget i channel så er clienten død)
