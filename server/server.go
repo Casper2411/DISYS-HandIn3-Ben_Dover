@@ -145,7 +145,6 @@ func Max(x, y int64) int64 {
 	return x
 }
 
-//From ChatGPT
 func removeElement(slice []*Connection, element *Connection) []*Connection {
     for i, v := range slice {
         if v == element {

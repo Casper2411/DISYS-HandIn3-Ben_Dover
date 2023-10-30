@@ -1,6 +1,6 @@
 package main
 
-//go run client/client.go -cPort 8080 -sPort 5454 -name ""
+//go run client/client.go -sPort 5454 -name "..."
 
 import (
 	"bufio"
@@ -21,10 +21,7 @@ import (
 
 type Client struct {
 	name       string
-	portNumber int
 }
-
-//var client proto.StreamingServiceClient
 
 var (
 	serverPort = flag.Int("sPort", 5454, "server port number (should match the port used for the server)")
@@ -64,7 +61,7 @@ func main() {
 		chatMessage := &proto.ChatMessage{
 			Id:          "New participant",
 			Participant: participant,
-			Message:     "Participant " + participant.Name + " joined the chat! Say hello!",
+			Message:     "Participant " + participant.Name + " joined the chat!",
 			Timestamp:   LamportTimestamp,
 		}
 
@@ -74,7 +71,6 @@ func main() {
 		}
 
 		scanner := bufio.NewScanner(os.Stdin)
-		//timestamp := time.Now()
 		messageId := client.name
 
 		for scanner.Scan() {
@@ -134,10 +130,8 @@ func connectParticipant(participant *proto.Participant, client proto.StreamingSe
 
 		for {
 			chatMessage, err := chatStream.Recv()
-			fmt.Println(len(chatMessage.String()))
 			if len(chatMessage.String()) > 180 {
-				fmt.Println(len(chatMessage.String()), "wwwoowoowowo")
-				streamError = fmt.Errorf("Message too long %v", err)
+				streamError = fmt.Errorf("message too long %v", err)
 				break
 			}
 			if err != nil {
